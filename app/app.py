@@ -1096,14 +1096,15 @@ def main():
     )
     
     st.title("PET Binding Dashboard — pH 7.4 (−50 charge)")
-    
-    # === PROJECT BANNER =====================================================
+
+    # === DEMONSTRATION DATA WARNING =========================================
     st.markdown(
         """
-        <div style='padding: 0.8rem; background-color: #e0fbfc; border-radius: 8px; margin-bottom: 1.5rem; border-left: 4px solid #ca6702;'>
-            <b>Sustech Flagship — Work Package: Nanoplastics Fate</b><br>
-            <small>200+ contaminants | PET nanoparticle at pH 7.4 (−50 total charge)</small><br>
-            <span style='color: #ca6702; font-weight: 600;'>🔬 Current analysis: pH 7.4 dataset</span>
+        <div style='padding: 0.9rem 1.1rem; background-color: #ffd6d6; border: 2px solid #c0392b; border-radius: 8px; margin-bottom: 1.5rem;'>
+            <b style='color: #c0392b; font-size: 1.05rem;'>⚠ Demonstration Data Only.</b>
+            Binding energies, occupancy values, and associated metrics have been shuffled and perturbed
+            to protect unpublished research data. Chemical names are real; all quantitative associations
+            are synthetic. For true results, see the associated publication.
         </div>
         """,
         unsafe_allow_html=True
