@@ -1,0 +1,8 @@
+streamlit
+pandas
+numpy
+plotly
+pyarrow
+py3Dmol
+rdkit
+Pillow

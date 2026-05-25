@@ -1,0 +1,15 @@
+# Real data - never commit
+/data/_35_/
+/data/_incorrect35_/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
