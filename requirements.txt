@@ -4,5 +4,5 @@ numpy
 plotly
 pyarrow
 py3Dmol
-rdkit
+rdkit-pypi
 Pillow

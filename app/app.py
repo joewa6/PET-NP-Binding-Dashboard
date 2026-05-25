@@ -147,38 +147,46 @@ def clean_mol2_to_rdkit(path: Path):
         from rdkit import Chem
     except ImportError:
         return None
-        
-    mol = Chem.MolFromMol2File(str(path), sanitize=True, removeHs=False)
+
+    mol = None
+    txt = path.read_text().splitlines()
+    fixed, in_atom = [], False
+    for line in txt:
+        if line.startswith("@<TRIPOS>ATOM"):
+            in_atom = True
+            fixed.append(line)
+            continue
+        if line.startswith("@<TRIPOS>"):
+            in_atom = False
+            fixed.append(line)
+            continue
+        if in_atom and line.strip():
+            parts = line.split()
+            if len(parts) >= 6:
+                aname = parts[1]
+                atype = parts[5]
+                elem = guess_element(atype, aname)
+                parts[5] = elem
+                line = " ".join(parts)
+            fixed.append(line)
+        else:
+            fixed.append(line)
+    block = "\n".join(fixed)
+    mol = Chem.MolFromMol2Block(block, sanitize=False, removeHs=False)
+
     if mol is None:
-        mol = Chem.MolFromMol2File(str(path), sanitize=False, removeHs=False)
+        try:
+            mol = Chem.MolFromMol2File(str(path), sanitize=True, removeHs=False)
+        except Exception:
+            mol = None
     if mol is None:
-        txt = path.read_text().splitlines()
-        fixed, in_atom = [], False
-        for line in txt:
-            if line.startswith("@<TRIPOS>ATOM"):
-                in_atom = True
-                fixed.append(line)
-                continue
-            if line.startswith("@<TRIPOS>"):
-                in_atom = False
-                fixed.append(line)
-                continue
-            if in_atom and line.strip():
-                parts = line.split()
-                if len(parts) >= 6:
-                    aname = parts[1]
-                    atype = parts[5]
-                    elem = guess_element(atype, aname)
-                    parts[5] = elem
-                    line = " ".join(parts)
-                fixed.append(line)
-            else:
-                fixed.append(line)
-        block = "\n".join(fixed)
-        mol = Chem.MolFromMol2Block(block, sanitize=False, removeHs=False)
+        try:
+            mol = Chem.MolFromMol2File(str(path), sanitize=False, removeHs=False)
+        except Exception:
+            mol = None
     if mol is None:
         return None
-    Chem.SanitizeMol(mol)
+    Chem.SanitizeMol(mol, catchErrors=True)
     return mol
 
 def render_rdkit_with_mol2_labels(mol, size=(400, 400)):
@@ -193,7 +201,7 @@ def render_rdkit_with_mol2_labels(mol, size=(400, 400)):
     try:
         from rdkit.Chem import rdDepictor
         from rdkit.Chem.Draw import rdMolDraw2D
-        from PIL import Image, ImageChops
+        from PIL import Image
         from io import BytesIO
 
         # Ensure 2D coordinates exist
@@ -256,7 +264,34 @@ def render_rdkit_with_mol2_labels(mol, size=(400, 400)):
         return buf
 
     except Exception as e:
-        print(f"[render_rdkit_with_mol2_labels] Failed: {e}")
+        print(f"[render_rdkit_with_mol2_labels] PNG render failed, trying SVG fallback: {e}")
+
+    try:
+        from rdkit.Chem import rdDepictor
+        from rdkit.Chem.Draw import rdMolDraw2D
+
+        rdDepictor.Compute2DCoords(mol)
+        drawer = rdMolDraw2D.MolDraw2DSVG(600, 600)
+        opts = drawer.drawOptions()
+        opts.addAtomIndices = False
+        opts.fixedBondLength = 60
+        opts.bondLineWidth = 3.0
+        opts.padding = 0.02
+
+        for atom in mol.GetAtoms():
+            if atom.HasProp("_TriposAtomName"):
+                atom_name = atom.GetProp("_TriposAtomName")
+            else:
+                atom_name = atom.GetSymbol() + str(atom.GetIdx())
+            opts.atomLabels[atom.GetIdx()] = atom_name
+
+        drawer.DrawMolecule(mol)
+        drawer.FinishDrawing()
+        svg = drawer.GetDrawingText().replace("svg:", "")
+        return svg
+
+    except Exception as e:
+        print(f"[render_rdkit_with_mol2_labels] SVG render failed: {e}")
         return None
 
 # === 3D MOLECULAR VIEWER (REAL DATA + FALLBACK) =========================
