@@ -3,13 +3,14 @@
 Generate fake-but-realistic showcase data for the Streamlit dashboard.
 
 Run once from the repository root. The script reads the real local `_50_`
-summary data, anonymizes system identifiers, perturbs metrics, and writes
-synthetic LIG.mol2 files into matching fake system folders.
+summary data, anonymizes system identifiers, perturbs metrics, and copies
+real LIG.mol2 structures into matching fake system folders.
 """
 from __future__ import annotations
 
 import hashlib
 import os
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -126,66 +127,6 @@ def scramble_df(df: pd.DataFrame, name_map: dict[str, str], kind: str) -> pd.Dat
     return df
 
 
-def write_synthetic_mol2(path: Path, seed_index: int) -> None:
-    """Write a small valid synthetic molecule instead of copying real structures."""
-    local_rng = np.random.default_rng(SEED + seed_index)
-    n_atoms = int(local_rng.integers(8, 18))
-    elements = ["C"] * n_atoms
-    if n_atoms >= 10:
-        elements[2] = "O"
-        elements[5] = "N"
-    if n_atoms >= 14:
-        elements[10] = "S"
-
-    coords = []
-    for i in range(n_atoms):
-        angle = i * 0.72
-        radius = 1.2 + 0.08 * i
-        coords.append(
-            (
-                radius * np.cos(angle),
-                radius * np.sin(angle),
-                0.18 * np.sin(i),
-            )
-        )
-
-    bonds = [(i, i + 1) for i in range(1, n_atoms)]
-    if n_atoms >= 8:
-        bonds.append((1, 6))
-
-    atom_lines = []
-    for idx, (element, (x, y, z)) in enumerate(zip(elements, coords), start=1):
-        atom_type = {"C": "c3", "O": "oh", "N": "n3", "S": "s3"}.get(element, "c3")
-        atom_lines.append(
-            f"{idx:7d} {element}{idx:<5d} {x:10.4f} {y:10.4f} {z:10.4f} "
-            f"{atom_type:<8s} 1 LIG {0.0:10.6f}"
-        )
-
-    bond_lines = [
-        f"{idx:6d} {a:5d} {b:5d} 1"
-        for idx, (a, b) in enumerate(bonds, start=1)
-    ]
-
-    text = "\n".join(
-        [
-            "@<TRIPOS>MOLECULE",
-            "LIG",
-            f"{n_atoms:5d} {len(bonds):5d}     1     0     0",
-            "SMALL",
-            "USER_CHARGES",
-            "",
-            "@<TRIPOS>ATOM",
-            *atom_lines,
-            "@<TRIPOS>BOND",
-            *bond_lines,
-            "@<TRIPOS>SUBSTRUCTURE",
-            "     1 LIG         1 TEMP              0 ****  ****    0 ROOT",
-            "",
-        ]
-    )
-    path.write_text(text)
-
-
 def main() -> None:
     sys_path = REAL_DATA / "summaries/summary_systems.csv"
     ana_path = REAL_DATA / "summaries/summary_analytes.csv"
@@ -217,15 +158,22 @@ def main() -> None:
 
     print("\nSummary files written.")
 
-    mol2_written = 0
-    for idx, fake_name in enumerate(name_map.values()):
+    mol2_copied = 0
+    missing_mol2 = 0
+    for real_name, fake_name in name_map.items():
+        src_mol2 = REAL_DATA / real_name / "LIG.mol2"
         dst_dir = OUT_DATA / fake_name
         dst_mol2 = dst_dir / "LIG.mol2"
-        dst_dir.mkdir(parents=True, exist_ok=True)
-        write_synthetic_mol2(dst_mol2, idx)
-        mol2_written += 1
+        if src_mol2.exists():
+            dst_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src_mol2, dst_mol2)
+            dst_mol2.chmod(0o644)
+            mol2_copied += 1
+        else:
+            missing_mol2 += 1
 
-    print(f"Wrote {mol2_written} synthetic LIG.mol2 files under fake system names.")
+    print(f"Copied {mol2_copied} LIG.mol2 files under fake system names.")
+    print(f"Missing {missing_mol2} LIG.mol2 files.")
     print("\nDone. Review data/_50_/ before committing.")
 
 

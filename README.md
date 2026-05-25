@@ -3,8 +3,9 @@
 Streamlit dashboard for exploring MD simulation results of environmental
 contaminants binding to PET nanoplastics.
 
-> Data in this repository is scrambled/anonymized. It is included only as a
-> working dashboard showcase.
+> Binding metrics, occupancy values, and system labels in this repository are
+> scrambled/anonymized. Molecular structures are retained so the 2D/3D viewers
+> work as a realistic dashboard showcase.
 
 ## Run Locally
 
